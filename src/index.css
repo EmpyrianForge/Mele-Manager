@@ -80,7 +80,7 @@ body {
 }
 
 /* ===== BOTTOM NAV ===== */
-.bottom-nav {
+.bottom-nav-wrapper {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -88,11 +88,42 @@ body {
   height: var(--nav-height);
   background: var(--bg-card);
   border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
   z-index: 20;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-nav-wrapper.scrollable::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: env(safe-area-inset-bottom);
+  width: 32px;
+  background: linear-gradient(to right, transparent, var(--bg-card));
+  pointer-events: none;
+}
+
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-bottom: 0;
+}
+
+.bottom-nav-wrapper:not(.scrollable) .bottom-nav {
+  justify-content: space-around;
+}
+
+.bottom-nav-wrapper.scrollable .bottom-nav {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 32px;
+}
+
+.bottom-nav-wrapper.scrollable .bottom-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-item {
@@ -110,7 +141,8 @@ body {
   font-weight: 500;
   text-decoration: none;
   transition: color 0.15s;
-  min-width: 52px;
+  min-width: 56px;
+  flex-shrink: 0;
 }
 
 .nav-item.active, .nav-item:hover {
