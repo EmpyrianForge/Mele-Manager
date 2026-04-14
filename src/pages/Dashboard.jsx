@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HardHat, ClipboardList, AlertTriangle, MapPin, Clock, CheckCircle2, X, User } from 'lucide-react'
+import { HardHat, ClipboardList, AlertTriangle, MapPin, Clock, CheckCircle2, X, User, Navigation, Bell } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { queueInsert } from '../lib/offlineQueue'
+import { showLocalNotification } from '../lib/pushNotifications'
 
 const taetigkeiten = ['Asphalteinbau', 'Erdarbeiten', 'Pflasterarbeiten', 'Markierungsarbeiten', 'Bordsteinarbeiten', 'Kanalbau', 'Aufräumen', 'Sonstiges']
+
+async function getGPS() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 6000, enableHighAccuracy: true, maximumAge: 30000 }
+    )
+  })
+}
 
 export default function Dashboard() {
   const { user, profile } = useAuth()
@@ -25,10 +37,11 @@ export default function Dashboard() {
   const [bereitsEingestempelt, setBereitsEingestempelt] = useState(false)
   const [meineAufgaben, setMeineAufgaben] = useState([])
 
-  // Schnell-Einstempel
+  // Einstempel
   const [showEinstempel, setShowEinstempel] = useState(false)
   const [einstempelForm, setEinstempelForm] = useState({ von: '07:00', bis: '16:00', pause_min: 30, taetigkeit: 'Asphalteinbau', baustelle_id: '' })
   const [saving, setSaving] = useState(false)
+  const [gpsStatus, setGpsStatus] = useState(null) // null | 'loading' | {lat,lng} | 'denied'
 
   useEffect(() => {
     if (!profile) return
@@ -58,11 +71,17 @@ export default function Dashboard() {
       supabase.from('aufgaben').select('id, titel, prioritaet, baustelle:baustellen(name)').neq('status', 'erledigt').limit(4),
     ])
     const einsatz = einsatzRes.data
+    const checked = (checkinRes.data?.length ?? 0) > 0
     setMeinEinsatz(einsatz || null)
-    setBereitsEingestempelt((checkinRes.data?.length ?? 0) > 0)
+    setBereitsEingestempelt(checked)
     setMeineAufgaben(tasksRes.data ?? [])
-    if (einsatz?.baustelle?.id) {
-      setEinstempelForm(f => ({ ...f, baustelle_id: einsatz.baustelle.id }))
+    if (einsatz?.baustelle?.id) setEinstempelForm(f => ({ ...f, baustelle_id: einsatz.baustelle.id }))
+
+    // Auto-Erinnerung: eingeplant, nicht krank/urlaub, noch nicht eingestempelt, nach 8:30 Uhr
+    const now = new Date()
+    const nach830 = now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 30)
+    if (einsatz && !checked && einsatz.status !== 'krank' && einsatz.status !== 'urlaub' && nach830) {
+      showLocalNotification('Vergessen einzustempeln? ⏰', `Du bist heute bei ${einsatz.baustelle?.name} eingeplant.`)
     }
   }
 
@@ -74,18 +93,35 @@ export default function Dashboard() {
 
   async function einstempeln() {
     setSaving(true)
-    const eintrag = { ...einstempelForm, mitarbeiter_id: user.id, datum: today, stunden: calcHours(einstempelForm.von, einstempelForm.bis, einstempelForm.pause_min) }
+    setGpsStatus('loading')
+    const pos = await getGPS()
+    setGpsStatus(pos || 'denied')
+
+    const eintrag = {
+      ...einstempelForm,
+      mitarbeiter_id: user.id,
+      datum: today,
+      stunden: calcHours(einstempelForm.von, einstempelForm.bis, einstempelForm.pause_min),
+      ...(pos ? { lat: pos.lat, lng: pos.lng } : {}),
+    }
     if (!navigator.onLine) queueInsert('zeiterfassung', eintrag)
     else await supabase.from('zeiterfassung').insert(eintrag)
+
     setSaving(false)
     setShowEinstempel(false)
+    setGpsStatus(null)
     setBereitsEingestempelt(true)
   }
 
   const priorityColor = { hoch: 'badge-red', mittel: 'badge-yellow', niedrig: 'badge-blue' }
+  const statusColor = { krank: 'badge-red', urlaub: 'badge-blue', geplant: 'badge-green' }
 
   // ── ARBEITER VIEW ──────────────────────────────────────────────
   if (!isChef) {
+    const now = new Date()
+    const nach830 = now.getHours() > 8 || (now.getHours() === 8 && now.getMinutes() >= 30)
+    const zeigeReminder = meinEinsatz && !bereitsEingestempelt && meinEinsatz.status !== 'krank' && meinEinsatz.status !== 'urlaub' && nach830
+
     return (
       <div>
         <div className="page-header">
@@ -95,42 +131,59 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Einstempel-Erinnerung */}
+        {zeigeReminder && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(249,115,22,0.15)', borderRadius: 10, marginBottom: 14, border: '1px solid var(--orange)' }}>
+            <Bell size={20} color="var(--orange)" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: 'var(--orange)', fontSize: '0.9rem' }}>Nicht vergessen!</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Du bist eingeplant aber noch nicht eingestempelt.</div>
+            </div>
+          </div>
+        )}
+
         <div className="section-title">Mein heutiger Einsatz</div>
         {meinEinsatz ? (
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-              <div style={{ background: 'var(--orange)', borderRadius: 10, padding: 10, flexShrink: 0 }}>
-                <HardHat size={22} color="white" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 2 }}>{meinEinsatz.baustelle?.name}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <MapPin size={12} /> {meinEinsatz.baustelle?.adresse}
-                </div>
-                {meinEinsatz.notiz && (
-                  <div style={{ marginTop: 6, fontSize: '0.82rem', color: 'var(--yellow)', fontStyle: 'italic' }}>
-                    Hinweis: {meinEinsatz.notiz}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {bereitsEingestempelt ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(34,197,94,0.12)', borderRadius: 8, color: 'var(--green)', fontWeight: 600 }}>
-                <CheckCircle2 size={20} /> Heute bereits eingestempelt
+            {meinEinsatz.status === 'krank' || meinEinsatz.status === 'urlaub' ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 8 }}>{meinEinsatz.status === 'krank' ? '🤒' : '🏖️'}</div>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', textTransform: 'capitalize' }}>{meinEinsatz.status}</div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4 }}>Gute Besserung / Erhol dich gut!</div>
               </div>
             ) : (
-              <button className="btn btn-primary" style={{ fontSize: '1rem', padding: '14px' }} onClick={() => setShowEinstempel(true)}>
-                <Clock size={20} /> Jetzt einstempeln
-              </button>
+              <>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+                  <div style={{ background: 'var(--orange)', borderRadius: 10, padding: 10, flexShrink: 0 }}>
+                    <HardHat size={22} color="white" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: 2 }}>{meinEinsatz.baustelle?.name}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <MapPin size={12} /> {meinEinsatz.baustelle?.adresse}
+                    </div>
+                    {meinEinsatz.notiz && (
+                      <div style={{ marginTop: 6, fontSize: '0.82rem', color: 'var(--yellow)', fontStyle: 'italic' }}>
+                        Hinweis: {meinEinsatz.notiz}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {bereitsEingestempelt ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', background: 'rgba(34,197,94,0.12)', borderRadius: 8, color: 'var(--green)', fontWeight: 600 }}>
+                    <CheckCircle2 size={20} /> Heute bereits eingestempelt
+                  </div>
+                ) : (
+                  <button className="btn btn-primary" style={{ fontSize: '1rem', padding: '14px' }} onClick={() => setShowEinstempel(true)}>
+                    <Clock size={20} /> Jetzt einstempeln
+                  </button>
+                )}
+              </>
             )}
           </div>
         ) : (
           <div className="card">
-            <div className="empty-state" style={{ padding: 24 }}>
-              <HardHat />
-              <p>Für heute kein Einsatz geplant</p>
-            </div>
+            <div className="empty-state" style={{ padding: 24 }}><HardHat /><p>Für heute kein Einsatz geplant</p></div>
           </div>
         )}
 
@@ -152,6 +205,7 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* Einstempel Modal */}
         {showEinstempel && (
           <div className="modal-overlay" onClick={() => setShowEinstempel(false)}>
             <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -173,7 +227,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="input-group">
-                <label className="input-label">Pause (Minuten)</label>
+                <label className="input-label">Pause (Min.)</label>
                 <input type="number" value={einstempelForm.pause_min} min={0} step={15} onChange={e => setEinstempelForm(f => ({ ...f, pause_min: e.target.value }))} />
               </div>
               <div className="input-group">
@@ -182,6 +236,18 @@ export default function Dashboard() {
                   {taetigkeiten.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
+
+              {/* GPS Status */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-input)', borderRadius: 8, marginBottom: 16, fontSize: '0.82rem' }}>
+                <Navigation size={14} color={gpsStatus && gpsStatus !== 'loading' && gpsStatus !== 'denied' ? 'var(--green)' : 'var(--text-muted)'} />
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {gpsStatus === 'loading' ? 'GPS wird ermittelt...' :
+                   gpsStatus === 'denied' ? 'GPS nicht verfügbar — wird ohne gespeichert' :
+                   gpsStatus ? `Standort erfasst ✓` :
+                   'GPS-Standort wird beim Eintragen erfasst'}
+                </span>
+              </div>
+
               <div style={{ background: 'var(--bg-input)', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: '0.9rem', color: 'var(--orange)' }}>
                 Netto: {calcHours(einstempelForm.von, einstempelForm.bis, einstempelForm.pause_min)} Stunden
               </div>
@@ -223,12 +289,15 @@ export default function Dashboard() {
           <div className="section-title">Heute im Einsatz ({heuteEinsatz.length})</div>
           <div className="card">
             {heuteEinsatz.map(e => (
-              <div key={e.id} className="list-item" onClick={() => navigate(`/baustellen/${e.baustelle_id}`)} style={{ cursor: 'pointer' }}>
+              <div key={e.id} className="list-item" style={{ cursor: 'pointer' }} onClick={() => navigate(`/baustellen/${e.baustelle_id}`)}>
                 <div className="list-item-icon"><User size={18} /></div>
                 <div className="list-item-text">
                   <div className="list-item-title">{e.mitarbeiter?.vorname} {e.mitarbeiter?.nachname}</div>
                   <div className="list-item-sub">{e.baustelle?.name}</div>
                 </div>
+                {e.status && e.status !== 'geplant' && (
+                  <span className={`badge ${statusColor[e.status]}`}>{e.status}</span>
+                )}
               </div>
             ))}
           </div>

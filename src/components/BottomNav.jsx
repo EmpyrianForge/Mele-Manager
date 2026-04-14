@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, HardHat, Clock, FileText, CalendarDays, ClipboardList, BarChart2, UserCircle } from 'lucide-react'
+import { LayoutDashboard, HardHat, Clock, FileText, CalendarDays, ClipboardList, BarChart2, Wrench, UserCircle } from 'lucide-react'
 
 const navItems = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Start' },
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/planung',      icon: CalendarDays,    label: 'Planung' },
   { to: '/aufgaben',     icon: ClipboardList,   label: 'Aufgaben' },
   { to: '/auswertung',   icon: BarChart2,       label: 'Stats' },
+  { to: '/geraete',      icon: Wrench,          label: 'Geräte' },
   { to: '/profil',       icon: UserCircle,      label: 'Profil' },
 ]
 

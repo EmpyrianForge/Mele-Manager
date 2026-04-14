@@ -19,6 +19,13 @@ function getWeekDates(offset = 0) {
 
 const emptyForm = { datum: '', mitarbeiter_id: '', baustelle_id: '', notiz: '' }
 
+const statusCycle = { geplant: 'krank', krank: 'urlaub', urlaub: 'geplant' }
+const statusStyle = {
+  geplant:  { bg: 'var(--bg-input)', color: 'var(--text)', emoji: '' },
+  krank:    { bg: 'rgba(239,68,68,0.15)', color: 'var(--red)', emoji: '🤒' },
+  urlaub:   { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa', emoji: '🏖️' },
+}
+
 export default function Planning() {
   const { profile } = useAuth()
   const isChef = ['chef', 'bauleiter', 'polier'].includes(profile?.rolle)
@@ -50,7 +57,7 @@ export default function Planning() {
 
   async function save() {
     setSaving(true)
-    await supabase.from('einsatzplanung').insert(form)
+    await supabase.from('einsatzplanung').insert({ ...form, status: 'geplant' })
     setSaving(false)
     setShowForm(false)
     setForm(emptyForm)
@@ -60,6 +67,12 @@ export default function Planning() {
   async function remove(id) {
     await supabase.from('einsatzplanung').delete().eq('id', id)
     load()
+  }
+
+  async function toggleStatus(a) {
+    const next = statusCycle[a.status ?? 'geplant'] ?? 'geplant'
+    await supabase.from('einsatzplanung').update({ status: next }).eq('id', a.id)
+    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, status: next } : x))
   }
 
   return (
@@ -90,32 +103,40 @@ export default function Planning() {
           const isToday = date === new Date().toISOString().split('T')[0]
           return (
             <div key={date} style={{
-              background: 'var(--bg-card)',
-              borderRadius: 8,
-              padding: '8px 6px',
-              border: isToday ? '1px solid var(--orange)' : '1px solid var(--border)',
-              minHeight: 80,
+              background: 'var(--bg-card)', borderRadius: 8, padding: '8px 6px',
+              border: isToday ? '1px solid var(--orange)' : '1px solid var(--border)', minHeight: 80,
             }}>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: isToday ? 'var(--orange)' : 'var(--text-muted)', marginBottom: 4, textAlign: 'center' }}>
                 {weekdays[i]}<br />
-                <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>
-                  {new Date(date + 'T12:00:00').getDate()}
-                </span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{new Date(date + 'T12:00:00').getDate()}</span>
               </div>
-              {dayAssignments.map(a => (
-                <div key={a.id} style={{ background: 'var(--bg-input)', borderRadius: 4, padding: '3px 5px', marginBottom: 3, fontSize: '0.65rem', color: 'var(--text)' }}>
-                  <div style={{ fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                    {a.mitarbeiter?.vorname}
+              {dayAssignments.map(a => {
+                const st = statusStyle[a.status ?? 'geplant'] ?? statusStyle.geplant
+                return (
+                  <div key={a.id} style={{ background: st.bg, borderRadius: 4, padding: '3px 5px', marginBottom: 3, fontSize: '0.65rem', color: st.color }}>
+                    <div style={{ fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {st.emoji} {a.mitarbeiter?.vorname}
+                    </div>
+                    <div style={{ color: a.status === 'krank' || a.status === 'urlaub' ? st.color : 'var(--orange)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                      {a.status === 'krank' ? 'Krank' : a.status === 'urlaub' ? 'Urlaub' : a.baustelle?.name}
+                    </div>
                   </div>
-                  <div style={{ color: 'var(--orange)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                    {a.baustelle?.name}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )
         })}
       </div>
+
+      {/* Legende */}
+      {isChef && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <span>Tippe auf Eintrag um Status zu ändern:</span>
+          <span>🟢 Geplant</span>
+          <span>🤒 Krank</span>
+          <span>🏖️ Urlaub</span>
+        </div>
+      )}
 
       {/* Listenansicht */}
       <div className="section-title">Alle Einplanungen dieser Woche</div>
@@ -123,22 +144,35 @@ export default function Planning() {
         {assignments.length === 0 ? (
           <div className="empty-state"><CalendarDays /><p>Keine Einplanungen diese Woche</p></div>
         ) : (
-          assignments.map(a => (
-            <div key={a.id} className="list-item">
-              <div className="list-item-icon"><User size={18} /></div>
-              <div className="list-item-text">
-                <div className="list-item-title">{a.mitarbeiter?.vorname} {a.mitarbeiter?.nachname}</div>
-                <div className="list-item-sub">
-                  {new Date(a.datum + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })} · {a.baustelle?.name}
+          assignments.map(a => {
+            const st = statusStyle[a.status ?? 'geplant'] ?? statusStyle.geplant
+            return (
+              <div key={a.id} className="list-item">
+                <div className="list-item-icon"><User size={18} /></div>
+                <div className="list-item-text">
+                  <div className="list-item-title">{a.mitarbeiter?.vorname} {a.mitarbeiter?.nachname}</div>
+                  <div className="list-item-sub">
+                    {new Date(a.datum + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })} · {a.baustelle?.name}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {isChef && (
+                    <button
+                      onClick={() => toggleStatus(a)}
+                      style={{ background: st.bg, border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', color: st.color, fontSize: '0.75rem', fontWeight: 600 }}
+                    >
+                      {st.emoji || '✓'} {(a.status ?? 'geplant').charAt(0).toUpperCase() + (a.status ?? 'geplant').slice(1)}
+                    </button>
+                  )}
+                  {isChef && (
+                    <button style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }} onClick={() => remove(a.id)}>
+                      <X size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
-              {isChef && (
-                <button style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }} onClick={() => remove(a.id)}>
-                  <X size={18} />
-                </button>
-              )}
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 

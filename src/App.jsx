@@ -11,6 +11,7 @@ import Tasks from './pages/Tasks'
 import Auswertung from './pages/Auswertung'
 import Profil from './pages/Profil'
 import SiteDetail from './pages/SiteDetail'
+import Equipment from './pages/Equipment'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="planung" element={<Planning />} />
         <Route path="aufgaben" element={<Tasks />} />
         <Route path="auswertung" element={<Auswertung />} />
+        <Route path="geraete" element={<Equipment />} />
         <Route path="profil" element={<Profil />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
