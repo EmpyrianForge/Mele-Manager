@@ -22,8 +22,9 @@ export default function Auswertung() {
   useEffect(() => { load() }, [monat, jahr])
 
   async function load() {
+    const lastDay = new Date(jahr, monat + 1, 0).getDate()
     const von = `${jahr}-${String(monat + 1).padStart(2, '0')}-01`
-    const bis = `${jahr}-${String(monat + 1).padStart(2, '0')}-31`
+    const bis = `${jahr}-${String(monat + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
     const { data } = await supabase
       .from('zeiterfassung')
