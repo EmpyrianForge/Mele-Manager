@@ -344,3 +344,7 @@ textarea { resize: vertical; min-height: 80px; }
 }
 
 .modal-box h3 { font-size: 1.1rem; font-weight: 700; }
+
+/* ===== SPINNER ===== */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }

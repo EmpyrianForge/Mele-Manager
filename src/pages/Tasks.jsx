@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { ClipboardList, Plus, X, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import PhotoUpload from '../components/PhotoUpload'
 
 const prioritaeten = ['hoch', 'mittel', 'niedrig']
 const statusOptionen = ['offen', 'in Bearbeitung', 'erledigt']
 const statusColors = { offen: 'badge-red', 'in Bearbeitung': 'badge-yellow', erledigt: 'badge-green' }
 const priorityColors = { hoch: 'badge-red', mittel: 'badge-yellow', niedrig: 'badge-blue' }
 
-const emptyForm = { titel: '', beschreibung: '', baustelle_id: '', prioritaet: 'mittel', status: 'offen', faellig_am: '' }
+const emptyForm = { titel: '', beschreibung: '', baustelle_id: '', prioritaet: 'mittel', status: 'offen', faellig_am: '', foto_urls: [] }
 
 export default function Tasks() {
   const { user } = useAuth()
@@ -107,6 +108,15 @@ export default function Tasks() {
             </div>
             {task.beschreibung && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{task.beschreibung.slice(0, 80)}{task.beschreibung.length > 80 ? '…' : ''}</p>}
 
+            {task.foto_urls?.length > 0 && (
+              <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+                {task.foto_urls.map((url, i) => (
+                  <img key={i} src={url} alt="" onClick={() => window.open(url, '_blank')}
+                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }} />
+                ))}
+              </div>
+            )}
+
             {/* Quick-Actions */}
             {task.status !== 'erledigt' && (
               <div style={{ marginTop: 10, display: 'flex', gap: 8 }} onClick={e => e.stopPropagation()}>
@@ -163,6 +173,15 @@ export default function Tasks() {
             <div className="input-group">
               <label className="input-label">Beschreibung</label>
               <textarea placeholder="Details zum Mangel oder zur Aufgabe..." value={form.beschreibung} onChange={e => setForm(f => ({ ...f, beschreibung: e.target.value }))} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Fotos vom Mangel</label>
+              <PhotoUpload
+                folder={`aufgaben/${form.id || 'neu-' + Date.now()}`}
+                existingUrls={form.foto_urls || []}
+                onUploaded={url => setForm(f => ({ ...f, foto_urls: [...(f.foto_urls || []), url] }))}
+                onRemove={url => setForm(f => ({ ...f, foto_urls: f.foto_urls.filter(u => u !== url) }))}
+              />
             </div>
             <button className="btn btn-primary" onClick={save} disabled={saving || !form.titel}>
               {saving ? 'Speichern...' : 'Speichern'}

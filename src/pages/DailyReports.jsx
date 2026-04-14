@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { FileText, Plus, X, CloudRain, Sun, Cloud } from 'lucide-react'
+import { FileText, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import PhotoUpload from '../components/PhotoUpload'
 
 const weatherOptions = ['Sonnig', 'Bewölkt', 'Leichter Regen', 'Starkregen', 'Schnee', 'Frost', 'Sturm']
 
@@ -15,6 +16,7 @@ const emptyForm = {
   verzoegerungen: '',
   personal_anzahl: '',
   geraete: '',
+  foto_urls: [],
 }
 
 export default function DailyReports() {
@@ -92,6 +94,19 @@ export default function DailyReports() {
                 Vorkommnis: {r.vorkommnisse}
               </div>
             )}
+            {r.foto_urls?.length > 0 && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                {r.foto_urls.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`Foto ${i+1}`}
+                    onClick={() => window.open(url, '_blank')}
+                    style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ))
       )}
@@ -126,6 +141,16 @@ export default function DailyReports() {
             {f('ausgefuehrte_arbeiten', 'Ausgeführte Arbeiten *', 'textarea', 'Was wurde heute gemacht?')}
             {f('vorkommnisse', 'Vorkommnisse / Mängel', 'textarea', 'Unfälle, Probleme, Beschwerden...')}
             {f('verzoegerungen', 'Verzögerungen', 'textarea', 'Ursachen für Verzögerungen...')}
+
+            <div className="input-group">
+              <label className="input-label">Fotos</label>
+              <PhotoUpload
+                folder={`berichte/${form.datum}-${form.baustelle_id || 'neu'}`}
+                existingUrls={form.foto_urls}
+                onUploaded={url => setForm(f => ({ ...f, foto_urls: [...f.foto_urls, url] }))}
+                onRemove={url => setForm(f => ({ ...f, foto_urls: f.foto_urls.filter(u => u !== url) }))}
+              />
+            </div>
 
             <button className="btn btn-primary" onClick={save} disabled={saving || !form.baustelle_id || !form.ausgefuehrte_arbeiten}>
               {saving ? 'Speichern...' : 'Bericht speichern'}
