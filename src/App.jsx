@@ -10,6 +10,7 @@ import Planning from './pages/Planning'
 import Tasks from './pages/Tasks'
 import Auswertung from './pages/Auswertung'
 import Profil from './pages/Profil'
+import SiteDetail from './pages/SiteDetail'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -25,6 +26,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="baustellen" element={<Sites />} />
+        <Route path="baustellen/:id" element={<SiteDetail />} />
         <Route path="zeiterfassung" element={<TimeTracking />} />
         <Route path="tagesberichte" element={<DailyReports />} />
         <Route path="planung" element={<Planning />} />

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { HardHat, Plus, MapPin, Phone, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { HardHat, Plus, MapPin, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const statusOptions = ['aktiv', 'geplant', 'abgeschlossen', 'pausiert']
 const statusColors = { aktiv: 'badge-green', geplant: 'badge-blue', abgeschlossen: 'badge-orange', pausiert: 'badge-yellow' }
@@ -8,11 +10,13 @@ const statusColors = { aktiv: 'badge-green', geplant: 'badge-blue', abgeschlosse
 const emptyForm = { name: '', adresse: '', auftraggeber: '', ansprechpartner_telefon: '', status: 'aktiv', notizen: '' }
 
 export default function Sites() {
+  const navigate = useNavigate()
+  const { profile } = useAuth()
+  const isChef = ['chef', 'bauleiter', 'polier'].includes(profile?.rolle)
   const [sites, setSites] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
-  const [selected, setSelected] = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -34,26 +38,22 @@ export default function Sites() {
     load()
   }
 
-  function edit(site) {
-    setForm(site)
-    setShowForm(true)
-    setSelected(null)
-  }
-
   return (
     <div>
       <div className="page-header">
         <h2>Baustellen</h2>
-        <button className="btn btn-primary btn-sm" style={{ width: 'auto' }} onClick={() => { setForm(emptyForm); setShowForm(true) }}>
-          <Plus size={16} /> Neu
-        </button>
+        {isChef && (
+          <button className="btn btn-primary btn-sm" style={{ width: 'auto' }} onClick={() => { setForm(emptyForm); setShowForm(true) }}>
+            <Plus size={16} /> Neu
+          </button>
+        )}
       </div>
 
       {sites.length === 0 ? (
         <div className="card"><div className="empty-state"><HardHat /><p>Noch keine Baustellen angelegt</p></div></div>
       ) : (
         sites.map(site => (
-          <div key={site.id} className="card" onClick={() => setSelected(site)} style={{ cursor: 'pointer' }}>
+          <div key={site.id} className="card" onClick={() => navigate(`/baustellen/${site.id}`)} style={{ cursor: 'pointer' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{site.name}</div>
@@ -68,30 +68,6 @@ export default function Sites() {
             </div>
           </div>
         ))
-      )}
-
-      {/* Detail-Modal */}
-      {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3>{selected.name}</h3>
-              <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={() => setSelected(null)}><X size={16} /></button>
-            </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 8 }}><MapPin size={13} style={{ display: 'inline' }} /> {selected.adresse}</p>
-            {selected.auftraggeber && <p style={{ fontSize: '0.85rem', marginBottom: 4 }}>Auftraggeber: {selected.auftraggeber}</p>}
-            {selected.ansprechpartner_telefon && (
-              <p style={{ fontSize: '0.85rem', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Phone size={13} />
-                <a href={`tel:${selected.ansprechpartner_telefon}`} style={{ color: 'var(--orange)' }}>{selected.ansprechpartner_telefon}</a>
-              </p>
-            )}
-            {selected.notizen && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 8 }}>{selected.notizen}</p>}
-            <div style={{ marginTop: 16 }}>
-              <button className="btn btn-secondary" onClick={() => edit(selected)}>Bearbeiten</button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Formular-Modal */}

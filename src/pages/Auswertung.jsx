@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { exportStundenzettelPDF } from '../lib/pdfExport'
-import { Download } from 'lucide-react'
+import { exportStundenzettelPDF, exportWochenberichtPDF } from '../lib/pdfExport'
+import { Download, Calendar } from 'lucide-react'
 
 const MONATE = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez']
 
@@ -18,6 +18,7 @@ export default function Auswertung() {
   const [perTag, setPerTag]                 = useState([])
   const [gesamt, setGesamt]                 = useState(0)
   const [exporting, setExporting]           = useState(false)
+  const [exportingKW, setExportingKW]       = useState(false)
 
   useEffect(() => { load() }, [monat, jahr])
 
@@ -72,13 +73,24 @@ export default function Auswertung() {
     setExporting(false)
   }
 
+  async function handleKWExport() {
+    setExportingKW(true)
+    await exportWochenberichtPDF(new Date())
+    setExportingKW(false)
+  }
+
   return (
     <div>
       <div className="page-header">
         <h2>Auswertung</h2>
-        <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={handleExport} disabled={exporting}>
-          <Download size={16} /> {exporting ? '...' : 'PDF'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={handleKWExport} disabled={exportingKW}>
+            <Calendar size={16} /> {exportingKW ? '...' : 'KW'}
+          </button>
+          <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={handleExport} disabled={exporting}>
+            <Download size={16} /> {exporting ? '...' : 'Monat'}
+          </button>
+        </div>
       </div>
 
       {/* Monatsauswahl */}

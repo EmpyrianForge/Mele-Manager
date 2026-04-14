@@ -3,6 +3,7 @@ import { ClipboardList, Plus, X, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import PhotoUpload from '../components/PhotoUpload'
+import { parseFoto } from '../lib/fotoUtils'
 
 const prioritaeten = ['hoch', 'mittel', 'niedrig']
 const statusOptionen = ['offen', 'in Bearbeitung', 'erledigt']
@@ -110,10 +111,20 @@ export default function Tasks() {
 
             {task.foto_urls?.length > 0 && (
               <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                {task.foto_urls.map((url, i) => (
-                  <img key={i} src={url} alt="" onClick={() => window.open(url, '_blank')}
-                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }} />
-                ))}
+                {task.foto_urls.map((encoded, i) => {
+                  const { url, kommentar } = parseFoto(encoded)
+                  return (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={url} alt="" onClick={() => window.open(url, '_blank')}
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', display: 'block' }} />
+                      {kommentar && (
+                        <div title={kommentar} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.65)', fontSize: '0.55rem', color: 'white', padding: '2px 3px', borderRadius: '0 0 6px 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {kommentar}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
 
@@ -180,7 +191,8 @@ export default function Tasks() {
                 folder={`aufgaben/${form.id || 'neu-' + Date.now()}`}
                 existingUrls={form.foto_urls || []}
                 onUploaded={url => setForm(f => ({ ...f, foto_urls: [...(f.foto_urls || []), url] }))}
-                onRemove={url => setForm(f => ({ ...f, foto_urls: f.foto_urls.filter(u => u !== url) }))}
+                onRemove={encoded => setForm(f => ({ ...f, foto_urls: f.foto_urls.filter(u => u !== encoded) }))}
+                onCommentChange={(old, updated) => setForm(f => ({ ...f, foto_urls: f.foto_urls.map(u => u === old ? updated : u) }))}
               />
             </div>
             <button className="btn btn-primary" onClick={save} disabled={saving || !form.titel}>
