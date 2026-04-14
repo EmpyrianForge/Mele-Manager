@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays, Plus, X, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../contexts/AuthContext'
 
 const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
 
@@ -19,6 +20,8 @@ function getWeekDates(offset = 0) {
 const emptyForm = { datum: '', mitarbeiter_id: '', baustelle_id: '', notiz: '' }
 
 export default function Planning() {
+  const { profile } = useAuth()
+  const isChef = ['chef', 'bauleiter', 'polier'].includes(profile?.rolle)
   const [weekOffset, setWeekOffset] = useState(0)
   const [assignments, setAssignments] = useState([])
   const [employees, setEmployees] = useState([])
@@ -63,9 +66,11 @@ export default function Planning() {
     <div>
       <div className="page-header">
         <h2>Einsatzplanung</h2>
-        <button className="btn btn-primary btn-sm" style={{ width: 'auto' }} onClick={() => setShowForm(true)}>
-          <Plus size={16} /> Planen
-        </button>
+        {isChef && (
+          <button className="btn btn-primary btn-sm" style={{ width: 'auto' }} onClick={() => setShowForm(true)}>
+            <Plus size={16} /> Planen
+          </button>
+        )}
       </div>
 
       {/* Wochennavigation */}
@@ -127,9 +132,11 @@ export default function Planning() {
                   {new Date(a.datum + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })} · {a.baustelle?.name}
                 </div>
               </div>
-              <button style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }} onClick={() => remove(a.id)}>
-                <X size={18} />
-              </button>
+              {isChef && (
+                <button style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4 }} onClick={() => remove(a.id)}>
+                  <X size={18} />
+                </button>
+              )}
             </div>
           ))
         )}

@@ -29,12 +29,17 @@ export default function TimeTracking() {
   }, [])
 
   async function load() {
-    const { data } = await supabase
+    const isChef = ['chef', 'bauleiter', 'polier'].includes(profile?.rolle)
+    let query = supabase
       .from('zeiterfassung')
-      .select('*, baustelle:baustellen(name)')
-      .eq('mitarbeiter_id', user.id)
+      .select('*, baustelle:baustellen(name), mitarbeiter:profiles(vorname, nachname)')
       .order('datum', { ascending: false })
-      .limit(30)
+      .limit(50)
+
+    // Arbeiter sieht nur eigene Einträge
+    if (!isChef) query = query.eq('mitarbeiter_id', user.id)
+
+    const { data } = await query
     setEntries(data ?? [])
   }
 
@@ -64,6 +69,8 @@ export default function TimeTracking() {
     return acc
   }, {})
 
+  const isChef = ['chef', 'bauleiter', 'polier'].includes(profile?.rolle)
+
   return (
     <div>
       <div className="page-header">
@@ -84,7 +91,9 @@ export default function TimeTracking() {
                 <div key={e.id} className="list-item">
                   <div className="list-item-icon"><Clock size={18} /></div>
                   <div className="list-item-text">
-                    <div className="list-item-title">{e.baustelle?.name}</div>
+                    <div className="list-item-title">
+                      {isChef && e.mitarbeiter ? `${e.mitarbeiter.vorname} ${e.mitarbeiter.nachname} · ` : ''}{e.baustelle?.name}
+                    </div>
                     <div className="list-item-sub">{e.von}–{e.bis} · {e.taetigkeit}</div>
                   </div>
                   <span className="badge badge-blue">{e.stunden}h</span>
