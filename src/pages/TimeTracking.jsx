@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Clock, Plus, X, CheckCircle } from 'lucide-react'
+import { Clock, Plus, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { queueInsert } from '../lib/offlineQueue'
 
 const taetigkeiten = ['Asphalteinbau', 'Erdarbeiten', 'Pflasterarbeiten', 'Markierungsarbeiten', 'Bordsteinarbeiten', 'Kanalbau', 'Aufräumen', 'Sonstiges']
 
@@ -52,11 +53,14 @@ export default function TimeTracking() {
 
   async function save() {
     setSaving(true)
-    await supabase.from('zeiterfassung').insert({
-      ...form,
-      mitarbeiter_id: user.id,
-      stunden: calcHours(form.von, form.bis, form.pause_min)
-    })
+    const eintrag = { ...form, mitarbeiter_id: user.id, stunden: calcHours(form.von, form.bis, form.pause_min) }
+
+    if (!navigator.onLine) {
+      queueInsert('zeiterfassung', eintrag)
+    } else {
+      await supabase.from('zeiterfassung').insert(eintrag)
+    }
+
     setSaving(false)
     setShowForm(false)
     load()

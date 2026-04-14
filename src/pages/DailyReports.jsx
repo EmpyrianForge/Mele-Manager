@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { FileText, Plus, X } from 'lucide-react'
+import { FileText, Plus, X, Download } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import PhotoUpload from '../components/PhotoUpload'
+import { exportTagesberichtPDF } from '../lib/pdfExport'
 
 const weatherOptions = ['Sonnig', 'Bewölkt', 'Leichter Regen', 'Starkregen', 'Schnee', 'Frost', 'Sturm']
 
@@ -82,7 +83,13 @@ export default function DailyReports() {
                   {new Date(r.datum + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
                 </div>
               </div>
-              <span className="badge badge-blue">{r.wetter}</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="badge badge-blue">{r.wetter}</span>
+                <button className="btn btn-secondary btn-sm" style={{ width: 'auto', padding: '4px 8px' }}
+                  onClick={() => exportTagesberichtPDF(r.id)}>
+                  <Download size={14} />
+                </button>
+              </div>
             </div>
             {r.ausgefuehrte_arbeiten && (
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }} >

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HardHat, Clock, ClipboardList, FileText, AlertTriangle, LogOut } from 'lucide-react'
+import { HardHat, ClipboardList, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function Dashboard() {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState({ baustellen: 0, offeneAufgaben: 0, fehlendeBerichteHeute: 0, aktiveMitarbeiter: 0 })
   const [recentSites, setRecentSites] = useState([])
@@ -36,9 +36,6 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <h2>Guten Tag{profile ? `, ${profile.vorname}` : ''}!</h2>
-        <button className="btn btn-secondary btn-sm" style={{ width: 'auto' }} onClick={async () => { await signOut(); navigate('/login') }}>
-          <LogOut size={16} /> Abmelden
-        </button>
       </div>
 
       <div className="stat-grid">

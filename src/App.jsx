@@ -8,6 +8,8 @@ import TimeTracking from './pages/TimeTracking'
 import DailyReports from './pages/DailyReports'
 import Planning from './pages/Planning'
 import Tasks from './pages/Tasks'
+import Auswertung from './pages/Auswertung'
+import Profil from './pages/Profil'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -27,6 +29,8 @@ export default function App() {
         <Route path="tagesberichte" element={<DailyReports />} />
         <Route path="planung" element={<Planning />} />
         <Route path="aufgaben" element={<Tasks />} />
+        <Route path="auswertung" element={<Auswertung />} />
+        <Route path="profil" element={<Profil />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

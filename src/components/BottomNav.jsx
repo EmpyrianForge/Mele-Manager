@@ -1,13 +1,15 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, HardHat, Clock, FileText, CalendarDays, ClipboardList } from 'lucide-react'
+import { LayoutDashboard, HardHat, Clock, FileText, CalendarDays, ClipboardList, BarChart2, UserCircle } from 'lucide-react'
 
 const navItems = [
-  { to: '/dashboard',    icon: LayoutDashboard, label: 'Übersicht' },
+  { to: '/dashboard',    icon: LayoutDashboard, label: 'Start' },
   { to: '/baustellen',   icon: HardHat,         label: 'Baustellen' },
   { to: '/zeiterfassung',icon: Clock,           label: 'Zeit' },
   { to: '/tagesberichte',icon: FileText,        label: 'Berichte' },
   { to: '/planung',      icon: CalendarDays,    label: 'Planung' },
   { to: '/aufgaben',     icon: ClipboardList,   label: 'Aufgaben' },
+  { to: '/auswertung',   icon: BarChart2,       label: 'Stats' },
+  { to: '/profil',       icon: UserCircle,      label: 'Profil' },
 ]
 
 export default function BottomNav() {
